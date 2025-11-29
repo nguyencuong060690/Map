@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { LayerType, WeatherAnalysis } from '../types';
-import { Wind, CloudRain, Thermometer, Mountain, MapPin, Activity, Loader2, Sparkles, Box, Layers } from 'lucide-react';
+import { Layers, Navigation, Menu, Play, Pause, Sun, Cloud, CloudLightning, CloudFog, CloudRain } from 'lucide-react';
 
 interface ControlPanelProps {
   activeLayer: LayerType;
@@ -11,158 +11,191 @@ interface ControlPanelProps {
   imageLoading: boolean;
   is3DMode: boolean;
   onToggle3D: () => void;
+  onRefresh: () => void;
+  onLocateMe: () => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
   activeLayer,
   onLayerChange,
   analysis,
-  loading,
-  generatedImage,
-  imageLoading,
   is3DMode,
   onToggle3D,
+  onLocateMe,
 }) => {
-  const layers = [
-    { id: LayerType.TERRAIN, label: 'Địa hình', icon: Mountain, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/50' },
-    { id: LayerType.WIND, label: 'Tốc độ gió', icon: Wind, color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/50' },
-    { id: LayerType.RAIN, label: 'Lượng mưa', icon: CloudRain, color: 'text-cyan-400', bg: 'bg-cyan-500/10 border-cyan-500/50' },
-    { id: LayerType.TEMPERATURE, label: 'Nhiệt độ', icon: Thermometer, color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/50' },
-  ];
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [showLayerMenu, setShowLayerMenu] = useState(false);
+
+  // Exact CSS Gradients based on the images provided
+  const getLegendStyle = () => {
+    switch(activeLayer) {
+      case LayerType.RAIN: 
+        // Blue -> Purple -> Yellow (Rainfall)
+        return { background: 'linear-gradient(to top, #2563eb 0%, #a855f7 50%, #facc15 100%)' };
+      case LayerType.TEMPERATURE: 
+        // Purple -> Blue -> Cyan -> Green -> Yellow -> Red (Rainbow Temperature)
+        return { background: 'linear-gradient(to top, #4c1d95 0%, #2563eb 20%, #22d3ee 40%, #4ade80 60%, #facc15 80%, #dc2626 100%)' };
+      case LayerType.WIND: 
+        // Light Blue -> Dark Blue (Wind)
+        return { background: 'linear-gradient(to top, #60a5fa 0%, #3b82f6 50%, #1e40af 100%)' };
+      default: 
+        return { background: 'linear-gradient(to top, #cbd5e1 0%, #64748b 100%)' };
+    }
+  };
+
+  const getLegendLabels = () => {
+    switch(activeLayer) {
+      case LayerType.TEMPERATURE: return ['55', '30', '20', '10', '0', '-20', '-40'];
+      case LayerType.WIND: return ['120', '80', '40', '0'];
+      default: return ['Rất lớn', 'Lớn', 'Vừa', 'Nhỏ']; // Rain
+    }
+  };
+
+  const labels = getLegendLabels();
+
+  // Determine Icon based on summary
+  const getWeatherIcon = () => {
+    const summary = analysis?.summary?.toLowerCase() || '';
+    if (summary.includes('mưa')) return <CloudRain className="w-5 h-5 text-blue-400" />;
+    if (summary.includes('bão') || summary.includes('sấm')) return <CloudLightning className="w-5 h-5 text-purple-400" />;
+    if (summary.includes('mây') || summary.includes('âm u')) return <Cloud className="w-5 h-5 text-gray-400" />;
+    return <Sun className="w-5 h-5 text-yellow-500" />;
+  };
 
   return (
-    <div className="absolute top-0 left-0 h-full w-full md:w-[450px] bg-slate-900/90 backdrop-blur-xl border-r border-slate-700 z-[1000] flex flex-col shadow-2xl transition-transform duration-300">
-      
-      {/* Header */}
-      <div className="p-6 border-b border-slate-700">
-        <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400 flex items-center gap-2">
-          <Activity className="w-6 h-6 text-blue-400" />
-          VN Geo-Immersive AI
-        </h1>
-        <p className="text-slate-400 text-sm mt-1">Hệ thống phân tích môi trường thực tế ảo</p>
+    <>
+      {/* Top Left: Done Button */}
+      <div className="absolute top-4 left-4 z-[1000]">
+        <button className="bg-white/90 backdrop-blur-md shadow-lg rounded-xl px-5 py-2.5 text-slate-900 font-bold text-sm hover:bg-white transition-colors">
+          Xong
+        </button>
       </div>
 
-      {/* Layer Selection */}
-      <div className="p-4 grid grid-cols-2 gap-3">
-        {layers.map((layer) => (
-          <button
-            key={layer.id}
-            onClick={() => onLayerChange(layer.id)}
-            className={`flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 ${
-              activeLayer === layer.id
-                ? `${layer.bg} border-l-4`
-                : 'bg-slate-800/50 border-slate-700 hover:bg-slate-800'
-            }`}
+      {/* Top Right: Actions */}
+      <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-3">
+        <button 
+          onClick={onLocateMe}
+          className="bg-white/90 backdrop-blur-md shadow-lg p-3 rounded-xl text-slate-700 hover:text-blue-500 transition-colors"
+        >
+          <Navigation className="w-6 h-6 fill-current" />
+        </button>
+        
+        <button className="bg-white/90 backdrop-blur-md shadow-lg p-3 rounded-xl text-slate-700 hover:text-slate-900 transition-colors">
+          <Menu className="w-6 h-6" />
+        </button>
+
+        <div className="relative">
+          <button 
+            onClick={() => setShowLayerMenu(!showLayerMenu)}
+            className={`bg-white/90 backdrop-blur-md shadow-lg p-3 rounded-xl transition-colors ${showLayerMenu ? 'text-blue-500' : 'text-slate-700'}`}
           >
-            <layer.icon className={`w-5 h-5 ${layer.color}`} />
-            <span className={`text-sm font-medium ${activeLayer === layer.id ? 'text-white' : 'text-slate-300'}`}>
-              {layer.label}
-            </span>
+            <Layers className="w-6 h-6" />
           </button>
-        ))}
+          
+          {/* Layer Popup Menu */}
+          {showLayerMenu && (
+             <div className="absolute right-0 top-14 bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl p-2 w-48 animate-in fade-in zoom-in-95 duration-200 border border-slate-100/50">
+                <div className="space-y-1">
+                   {[
+                     { type: LayerType.RAIN, label: 'Lượng mưa' },
+                     { type: LayerType.TEMPERATURE, label: 'Nhiệt độ' },
+                     { type: LayerType.WIND, label: 'Tốc độ gió' },
+                   ].map((l) => (
+                     <button
+                        key={l.type}
+                        onClick={() => { onLayerChange(l.type); setShowLayerMenu(false); }}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${activeLayer === l.type ? 'bg-blue-50 text-blue-600' : 'text-slate-600 hover:bg-slate-50'}`}
+                     >
+                       {l.label}
+                     </button>
+                   ))}
+                   <div className="h-px bg-slate-100 my-1"></div>
+                   <button
+                        onClick={onToggle3D}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${is3DMode ? 'bg-purple-50 text-purple-600' : 'text-slate-600 hover:bg-slate-50'}`}
+                     >
+                       {is3DMode ? 'Tắt chế độ 3D' : 'Bật bản đồ Vệ tinh'}
+                     </button>
+                </div>
+             </div>
+          )}
+        </div>
       </div>
 
-      {/* 3D Toggle */}
-      <div className="px-4 pb-2">
-         <button 
-            onClick={onToggle3D}
-            className={`w-full flex items-center justify-center gap-2 p-3 rounded-xl border transition-all duration-300 group ${
-                is3DMode 
-                ? 'bg-purple-600/20 border-purple-500/50 text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.3)]' 
-                : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'
-            }`}
-         >
-            {is3DMode ? <Box className="w-5 h-5 animate-pulse" /> : <Layers className="w-5 h-5" />}
-            <span className="font-semibold">{is3DMode ? 'Chế độ 3D Vệ tinh Đang Bật' : 'Bật Chế độ 3D Vệ tinh'}</span>
-         </button>
+      {/* Floating Left: Legend */}
+      <div className="absolute top-24 left-4 z-[1000]">
+        <div className="bg-white/80 backdrop-blur-xl shadow-lg rounded-xl p-3 w-32 border border-white/20">
+          <div className="text-xs font-bold text-slate-800 mb-2">
+            {activeLayer === LayerType.RAIN ? 'Lượng mưa' : 
+             activeLayer === LayerType.TEMPERATURE ? 'Nhiệt độ' : 
+             activeLayer === LayerType.WIND ? 'Gió (km/h)' : 'Chú thích'}
+          </div>
+          <div className="flex gap-3 h-40">
+             {/* Gradient Bar */}
+             <div 
+               className="w-1.5 rounded-full shadow-inner opacity-90" 
+               style={getLegendStyle()}
+             ></div>
+             {/* Labels */}
+             <div className="flex flex-col justify-between py-0.5 text-[11px] font-medium text-slate-500">
+               {labels.map((label, idx) => (
+                 <span key={idx}>{label}</span>
+               ))}
+             </div>
+          </div>
+        </div>
       </div>
 
-      {/* Content Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 glass-panel">
-        {!analysis && !loading && (
-          <div className="text-center py-20 text-slate-500">
-            <MapPin className="w-12 h-12 mx-auto mb-4 opacity-50 animate-bounce" />
-            <p>Chọn một địa điểm trên bản đồ Việt Nam<br/>để bắt đầu phân tích AI.</p>
-          </div>
-        )}
-
-        {loading && (
-          <div className="text-center py-20 text-blue-400 space-y-4">
-            <Loader2 className="w-10 h-10 mx-auto animate-spin" />
-            <p className="animate-pulse">Gemini đang phân tích vệ tinh...</p>
-          </div>
-        )}
-
-        {analysis && !loading && (
-          <div className="space-y-6 animate-fade-in">
-            {/* Location Header */}
-            <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-red-400" />
-                {analysis.locationName}
-              </h2>
-              <p className="text-slate-400 text-sm mt-1">{analysis.summary}</p>
-            </div>
-
-            {/* Immersive AI Visual */}
-            <div className="relative group rounded-xl overflow-hidden border border-slate-700 aspect-video bg-black/40">
-              {imageLoading ? (
-                 <div className="absolute inset-0 flex items-center justify-center flex-col gap-2 text-purple-400">
-                   <Sparkles className="w-8 h-8 animate-pulse" />
-                   <span className="text-xs uppercase tracking-widest">Đang tạo hình ảnh VR...</span>
+      {/* Bottom: Playback & Timeline */}
+      <div className="absolute bottom-6 left-4 right-4 z-[1000] flex justify-center">
+        <div className="bg-white/80 backdrop-blur-xl shadow-2xl rounded-[2rem] p-4 w-full max-w-2xl flex flex-col gap-3 border border-white/20">
+           <div className="flex items-center gap-3">
+              <button 
+                onClick={() => setIsPlaying(!isPlaying)}
+                className="w-10 h-10 rounded-full bg-slate-200/50 hover:bg-slate-300/50 flex items-center justify-center transition-colors text-slate-800 backdrop-blur-sm"
+              >
+                 {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+              </button>
+              
+              <div className="flex-1">
+                 <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                    {getWeatherIcon()}
+                    <span>
+                        {activeLayer === LayerType.WIND ? 'Tốc độ gió' : 
+                         activeLayer === LayerType.TEMPERATURE ? 'Dự báo nhiệt độ' : 'Dự báo lượng mưa'}
+                    </span>
+                    <span className="text-slate-400 font-normal">| {new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
                  </div>
-              ) : generatedImage ? (
-                <>
-                   <img src={generatedImage} alt="AI Generated" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                   <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent text-xs text-slate-300 text-center">
-                     Hình ảnh được tạo bởi Gemini AI
-                   </div>
-                </>
-              ) : (
-                <div className="flex items-center justify-center h-full text-slate-500 text-sm">Không thể tạo hình ảnh</div>
-              )}
-            </div>
+              </div>
+           </div>
 
-            {/* AI VR Description */}
-            <div className="bg-gradient-to-br from-indigo-900/30 to-purple-900/30 p-5 rounded-xl border border-indigo-500/30 relative">
-              <div className="absolute top-2 right-2">
-                 <Sparkles className="w-4 h-4 text-purple-400 opacity-70" />
+           {/* Timeline Slider Mockup */}
+           <div className="relative h-8 w-full mt-1">
+              <div className="absolute top-1/2 left-0 right-0 h-1 bg-slate-200/80 rounded-full overflow-hidden">
+                 <div className="h-full w-1/4 bg-slate-800 rounded-full"></div>
               </div>
-              <h3 className="text-sm font-semibold text-purple-300 mb-2 uppercase tracking-wide">Trải nghiệm Thực tế ảo</h3>
-              <p className="text-slate-200 leading-relaxed italic text-sm">
-                "{analysis.immersiveDescription}"
-              </p>
-            </div>
-
-            {/* Metrics Grid */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-slate-800/40 p-3 rounded-lg border border-slate-700">
-                <div className="text-xs text-slate-400 mb-1">Nhiệt độ</div>
-                <div className="text-lg font-semibold text-orange-400">{analysis.temperature}</div>
+              <div className="flex justify-between items-center text-[10px] text-slate-500 font-semibold pt-3 uppercase tracking-wide">
+                 <span>Bây giờ</span>
+                 <span>12 giờ</span>
+                 <span>14 giờ</span>
+                 <span>16 giờ</span>
+                 <span>18 giờ</span>
+                 <span>20 giờ</span>
               </div>
-              <div className="bg-slate-800/40 p-3 rounded-lg border border-slate-700">
-                <div className="text-xs text-slate-400 mb-1">Gió</div>
-                <div className="text-lg font-semibold text-blue-400">{analysis.windSpeed}</div>
-              </div>
-              <div className="bg-slate-800/40 p-3 rounded-lg border border-slate-700">
-                <div className="text-xs text-slate-400 mb-1">Lượng mưa</div>
-                <div className="text-lg font-semibold text-cyan-400">{analysis.rainfall}</div>
-              </div>
-              <div className="bg-slate-800/40 p-3 rounded-lg border border-slate-700">
-                <div className="text-xs text-slate-400 mb-1">Địa hình</div>
-                <div className="text-lg font-semibold text-emerald-400 truncate" title={analysis.terrainType}>{analysis.terrainType}</div>
-              </div>
-            </div>
-
-             <div className="bg-slate-800/40 p-4 rounded-lg border border-slate-700">
-                <div className="text-xs text-slate-400 mb-1 uppercase">Lời khuyên AI</div>
-                <div className="text-sm text-slate-200">{analysis.recommendation}</div>
-              </div>
-
-          </div>
-        )}
+              {/* Draggable Knob */}
+              <div className="absolute top-1/2 left-1/4 -translate-y-1/2 -translate-x-1/2 w-1.5 h-3 bg-slate-800 rounded-full shadow-md cursor-pointer hover:scale-125 transition-transform"></div>
+           </div>
+           
+           {/* Analysis Text Summary */}
+           {analysis && (
+             <div className="mt-1 pt-2 border-t border-slate-200/50 text-xs text-slate-600 flex justify-between items-center">
+                <span className="font-bold">{analysis.locationName}</span>
+                <span className="truncate max-w-[200px] text-right">{analysis.immersiveDescription}</span>
+             </div>
+           )}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

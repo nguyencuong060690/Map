@@ -1,5 +1,7 @@
 {
   "name": "VN Geo-Immersive AI",
   "description": "Một ứng dụng thực tế ảo AI tương tác trực quan hóa dữ liệu địa lý (gió, mưa, nhiệt độ, địa hình) trên bản đồ Việt Nam. Sử dụng Gemini để phân tích địa điểm và tạo hình ảnh mô phỏng điều kiện thời tiết thực tế.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "geolocation"
+  ]
 }
